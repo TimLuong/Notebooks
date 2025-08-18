@@ -1,0 +1,657 @@
+# PowerShell script to create the 'Patients' SharePoint list and columns
+# This script checks for success after each operation
+
+param(
+    [string]$SiteUrl = "https://mngenvmcap432670.sharepoint.com/sites/ProjectManagement"
+)
+
+function Check-LastCommand {
+    param([string]$Action)
+    if ($?) {
+        Write-Host "$Action - Success" -ForegroundColor Green
+    } else {
+        Write-Host "$Action - Failed: $($Error[0])" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# Connect to SharePoint with ClientId
+Connect-PnPOnline -Url $SiteUrl -ClientId 895298f8-3468-445f-8059-0d925de101fc
+Check-LastCommand "Connect to SharePoint"
+
+# Create Patients list if it doesn't exist
+if (-not (Get-PnPList -Identity "Patients" -ErrorAction SilentlyContinue)) {
+    New-PnPList -Title "Patients" -Template GenericList
+    Check-LastCommand "Create 'Patients' list"
+} else {
+    Write-Host "'Patients' list already exists" -ForegroundColor Yellow
+}
+
+# Rename Title column to PatientName and set required/indexed
+Set-PnPField -List "Patients" -Identity "Title" -Values @{Title="PatientName"; Required=$true; Indexed=$true}
+Check-LastCommand "Rename 'Title' to 'PatientName' and set required/indexed"
+
+# Add PatientID
+if (-not (Get-PnPField -List "Patients" -Identity "PatientID" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "PatientID" -InternalName "PatientID" -Type Text -AddToDefaultView -Required
+    Check-LastCommand "Add 'PatientID' field"
+    Set-PnPField -List "Patients" -Identity "PatientID" -Values @{EnforceUniqueValues=$true; Indexed=$true}
+    Check-LastCommand "Set 'PatientID' as unique and indexed"
+} else {
+    Write-Host "'PatientID' field already exists" -ForegroundColor Yellow
+}
+
+# Add DateOfBirth
+if (-not (Get-PnPField -List "Patients" -Identity "DateOfBirth" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "DateOfBirth" -InternalName "DateOfBirth" -Type DateTime -AddToDefaultView
+    Check-LastCommand "Add 'DateOfBirth' field"
+} else {
+    Write-Host "'DateOfBirth' field already exists" -ForegroundColor Yellow
+}
+
+# Add Gender
+if (-not (Get-PnPField -List "Patients" -Identity "Gender" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "Gender" -InternalName "Gender" -Type Choice -Choices @("Male","Female","Other") -AddToDefaultView
+    Check-LastCommand "Add 'Gender' field"
+} else {
+    Write-Host "'Gender' field already exists" -ForegroundColor Yellow
+}
+
+# Add ContactNumber
+if (-not (Get-PnPField -List "Patients" -Identity "ContactNumber" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "ContactNumber" -InternalName "ContactNumber" -Type Text
+    Check-LastCommand "Add 'ContactNumber' field"
+} else {
+    Write-Host "'ContactNumber' field already exists" -ForegroundColor Yellow
+}
+
+# Add EmailAddress
+if (-not (Get-PnPField -List "Patients" -Identity "EmailAddress" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "EmailAddress" -InternalName "EmailAddress" -Type Text
+    Check-LastCommand "Add 'EmailAddress' field"
+} else {
+    Write-Host "'EmailAddress' field already exists" -ForegroundColor Yellow
+}
+
+# Add Address
+if (-not (Get-PnPField -List "Patients" -Identity "Address" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "Address" -InternalName "Address" -Type Note
+    Check-LastCommand "Add 'Address' field"
+} else {
+    Write-Host "'Address' field already exists" -ForegroundColor Yellow
+}
+
+# Add MedicalHistorySummary
+if (-not (Get-PnPField -List "Patients" -Identity "MedicalHistorySummary" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "MedicalHistorySummary" -InternalName "MedicalHistorySummary" -Type Note
+    Check-LastCommand "Add 'MedicalHistorySummary' field"
+} else {
+    Write-Host "'MedicalHistorySummary' field already exists" -ForegroundColor Yellow
+}
+
+# Add PatientStatus
+if (-not (Get-PnPField -List "Patients" -Identity "PatientStatus" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "PatientStatus" -InternalName "PatientStatus" -Type Choice -Choices @("New","In Treatment","Completed","High Priority","Awaiting Follow-up") -AddToDefaultView
+    Check-LastCommand "Add 'PatientStatus' field"
+    Set-PnPField -List "Patients" -Identity "PatientStatus" -Values @{DefaultValue="New"; Indexed=$true}
+    Check-LastCommand "Set 'PatientStatus' default and indexed"
+} else {
+    Write-Host "'PatientStatus' field already exists" -ForegroundColor Yellow
+}
+
+# Add AssignedDoctor
+if (-not (Get-PnPField -List "Patients" -Identity "AssignedDoctor" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Patients" -DisplayName "AssignedDoctor" -InternalName "AssignedDoctor" -Type User
+    Check-LastCommand "Add 'AssignedDoctor' field"
+    Set-PnPField -List "Patients" -Identity "AssignedDoctor" -Values @{SelectionMode=0}
+    Check-LastCommand "Set 'AssignedDoctor' to People Only"
+} else {
+    Write-Host "'AssignedDoctor' field already exists" -ForegroundColor Yellow
+}
+
+Write-Host "'Patients' list setup complete!" -ForegroundColor Cyan
+
+# === DOCTORS LIST CREATION ===
+# Create Doctors list if it doesn't exist
+if (-not (Get-PnPList -Identity "Doctors" -ErrorAction SilentlyContinue)) {
+    New-PnPList -Title "Doctors" -Template GenericList
+    Check-LastCommand "Create 'Doctors' list"
+} else {
+    Write-Host "'Doctors' list already exists" -ForegroundColor Yellow
+}
+
+# Rename Title column to DoctorName and set required
+Set-PnPField -List "Doctors" -Identity "Title" -Values @{Title="DoctorName"; Required=$true}
+Check-LastCommand "Rename 'Title' to 'DoctorName' and set required"
+
+# Add DoctorID
+if (-not (Get-PnPField -List "Doctors" -Identity "DoctorID" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Doctors" -DisplayName "DoctorID" -InternalName "DoctorID" -Type Text -AddToDefaultView -Required
+    Check-LastCommand "Add 'DoctorID' field"
+    Set-PnPField -List "Doctors" -Identity "DoctorID" -Values @{EnforceUniqueValues=$true; Indexed=$true}
+    Check-LastCommand "Set 'DoctorID' as unique and indexed"
+} else {
+    Write-Host "'DoctorID' field already exists" -ForegroundColor Yellow
+}
+
+# Add Specialization (choice)
+if (-not (Get-PnPField -List "Doctors" -Identity "Specialization" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Doctors" -DisplayName "Specialization" -InternalName "Specialization" -Type Choice -Choices @("Cardiology","Endocrinology","Gastroenterology","Pulmonology","Pediatrics") -AddToDefaultView
+    Check-LastCommand "Add 'Specialization' field"
+} else {
+    Write-Host "'Specialization' field already exists" -ForegroundColor Yellow
+}
+
+# Add ContactEmail
+if (-not (Get-PnPField -List "Doctors" -Identity "ContactEmail" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Doctors" -DisplayName "ContactEmail" -InternalName "ContactEmail" -Type Text
+    Check-LastCommand "Add 'ContactEmail' field"
+} else {
+    Write-Host "'ContactEmail' field already exists" -ForegroundColor Yellow
+}
+
+# Add Department (choice)
+if (-not (Get-PnPField -List "Doctors" -Identity "Department" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Doctors" -DisplayName "Department" -InternalName "Department" -Type Choice -Choices @("Cardiology","Endocrinology","Gastroenterology","Pulmonology","Pediatrics","General Medicine","Surgery","Radiology","Oncology","Neurology") -AddToDefaultView
+    Check-LastCommand "Add 'Department' field (choice)"
+} else {
+    Write-Host "'Department' field already exists" -ForegroundColor Yellow
+}
+
+Write-Host "'Doctors' list setup complete!" -ForegroundColor Cyan
+
+# === APPOINTMENTS LIST CREATION ===
+# Create Appointments list if it doesn't exist
+if (-not (Get-PnPList -Identity "Appointments" -ErrorAction SilentlyContinue)) {
+    New-PnPList -Title "Appointments" -Template GenericList
+    Check-LastCommand "Create 'Appointments' list"
+} else {
+    Write-Host "'Appointments' list already exists" -ForegroundColor Yellow
+}
+
+# Rename Title column to Purpose and set required
+Set-PnPField -List "Appointments" -Identity "Title" -Values @{Title="Purpose"; Required=$true}
+Check-LastCommand "Rename 'Title' to 'Purpose' and set required"
+
+# Add Patient (Lookup to Patients, required, indexed)
+if (-not (Get-PnPField -List "Appointments" -Identity "Patient" -ErrorAction SilentlyContinue)) {
+    $patientsList = Get-PnPList -Identity "Patients"
+    Add-PnPField -List "Appointments" -DisplayName "Patient" -InternalName "Patient" -Type Lookup -AddToDefaultView -Required
+    Check-LastCommand "Add 'Patient' lookup field"
+    Set-PnPField -List "Appointments" -Identity "Patient" -Values @{LookupList=$patientsList.Id.ToString(); LookupFieldName="Title"; Indexed=$true}
+    Check-LastCommand "Set 'Patient' lookup configuration and indexed"
+} else {
+    Write-Host "'Patient' field already exists" -ForegroundColor Yellow
+}
+
+# Add Doctor (Lookup to Doctors, required, indexed)
+if (-not (Get-PnPField -List "Appointments" -Identity "Doctor" -ErrorAction SilentlyContinue)) {
+    $doctorsList = Get-PnPList -Identity "Doctors"
+    Add-PnPField -List "Appointments" -DisplayName "Doctor" -InternalName "Doctor" -Type Lookup -AddToDefaultView -Required
+    Check-LastCommand "Add 'Doctor' lookup field"
+    Set-PnPField -List "Appointments" -Identity "Doctor" -Values @{LookupList=$doctorsList.Id.ToString(); LookupFieldName="Title"; Indexed=$true}
+    Check-LastCommand "Set 'Doctor' lookup configuration and indexed"
+} else {
+    Write-Host "'Doctor' field already exists" -ForegroundColor Yellow
+}
+
+# Add AppointmentDateTime (DateTime, indexed)
+if (-not (Get-PnPField -List "Appointments" -Identity "AppointmentDateTime" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Appointments" -DisplayName "AppointmentDateTime" -InternalName "AppointmentDateTime" -Type DateTime -AddToDefaultView
+    Check-LastCommand "Add 'AppointmentDateTime' field"
+    Set-PnPField -List "Appointments" -Identity "AppointmentDateTime" -Values @{Indexed=$true}
+    Check-LastCommand "Set 'AppointmentDateTime' as indexed"
+} else {
+    Write-Host "'AppointmentDateTime' field already exists" -ForegroundColor Yellow
+}
+
+# Add AppointmentEndTime (DateTime)
+if (-not (Get-PnPField -List "Appointments" -Identity "AppointmentEndTime" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Appointments" -DisplayName "AppointmentEndTime" -InternalName "AppointmentEndTime" -Type DateTime
+    Check-LastCommand "Add 'AppointmentEndTime' field"
+} else {
+    Write-Host "'AppointmentEndTime' field already exists" -ForegroundColor Yellow
+}
+
+# Add ServiceType (Choice)
+if (-not (Get-PnPField -List "Appointments" -Identity "ServiceType" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Appointments" -DisplayName "ServiceType" -InternalName "ServiceType" -Type Choice -Choices @("General Check-up","Specialist Consultation","Follow-up","Lab Test","Imaging","Minor Procedure")
+    Check-LastCommand "Add 'ServiceType' field"
+} else {
+    Write-Host "'ServiceType' field already exists" -ForegroundColor Yellow
+}
+
+# Add Status (Choice, default Scheduled, indexed)
+if (-not (Get-PnPField -List "Appointments" -Identity "Status" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Appointments" -DisplayName "Status" -InternalName "Status" -Type Choice -Choices @("Scheduled","Confirmed","Completed","Cancelled","No Show")
+    Check-LastCommand "Add 'Status' field"
+    Set-PnPField -List "Appointments" -Identity "Status" -Values @{DefaultValue="Scheduled"; Indexed=$true}
+    Check-LastCommand "Set 'Status' default and indexed"
+} else {
+    Write-Host "'Status' field already exists" -ForegroundColor Yellow
+}
+
+# Add Notes (Multiple lines of text)
+if (-not (Get-PnPField -List "Appointments" -Identity "Notes" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Appointments" -DisplayName "Notes" -InternalName "Notes" -Type Note
+    Check-LastCommand "Add 'Notes' field"
+} else {
+    Write-Host "'Notes' field already exists" -ForegroundColor Yellow
+}
+
+# Add IsUrgent (Yes/No, default No)
+if (-not (Get-PnPField -List "Appointments" -Identity "IsUrgent" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "Appointments" -DisplayName "IsUrgent" -InternalName "IsUrgent" -Type Boolean
+    Check-LastCommand "Add 'IsUrgent' field"
+    Set-PnPField -List "Appointments" -Identity "IsUrgent" -Values @{DefaultValue="0"}
+    Check-LastCommand "Set 'IsUrgent' default to No"
+} else {
+    Write-Host "'IsUrgent' field already exists" -ForegroundColor Yellow
+}
+
+Write-Host "'Appointments' list setup complete!" -ForegroundColor Cyan
+
+# === PATIENT JOURNEY ACTIVITIES LIST CREATION ===
+# Create PatientJourneyActivities list if it doesn't exist
+if (-not (Get-PnPList -Identity "PatientJourneyActivities" -ErrorAction SilentlyContinue)) {
+    New-PnPList -Title "PatientJourneyActivities" -Template GenericList
+    Check-LastCommand "Create 'PatientJourneyActivities' list"
+} else {
+    Write-Host "'PatientJourneyActivities' list already exists" -ForegroundColor Yellow
+}
+
+# Rename Title column to ActivityName and set required
+Set-PnPField -List "PatientJourneyActivities" -Identity "Title" -Values @{Title="ActivityName"}
+Check-LastCommand "Rename 'Title' to 'ActivityName'"
+Set-PnPField -List "PatientJourneyActivities" -Identity "Title" -Values @{Required=$true}
+Check-LastCommand "Set 'ActivityName' as required"
+
+# Add Patient (Lookup to Patients, required, indexed)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "Patient" -ErrorAction SilentlyContinue)) {
+    $patientsList = Get-PnPList -Identity "Patients"
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "Patient" -InternalName "Patient" -Type Lookup -AddToDefaultView -Required
+    Check-LastCommand "Add 'Patient' lookup field"
+    Set-PnPField -List "PatientJourneyActivities" -Identity "Patient" -Values @{LookupList=$patientsList.Id.ToString(); LookupFieldName="Title"; Indexed=$true}
+    Check-LastCommand "Set 'Patient' lookup configuration and indexed"
+} else {
+    Write-Host "'Patient' field already exists" -ForegroundColor Yellow
+}
+
+# Add Doctor (Lookup to Doctors, indexed)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "Doctor" -ErrorAction SilentlyContinue)) {
+    $doctorsList = Get-PnPList -Identity "Doctors"
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "Doctor" -InternalName "Doctor" -Type Lookup -AddToDefaultView
+    Check-LastCommand "Add 'Doctor' lookup field"
+    Set-PnPField -List "PatientJourneyActivities" -Identity "Doctor" -Values @{LookupList=$doctorsList.Id.ToString(); LookupFieldName="Title"; Indexed=$true}
+    Check-LastCommand "Set 'Doctor' lookup configuration and indexed"
+} else {
+    Write-Host "'Doctor' field already exists" -ForegroundColor Yellow
+}
+
+# Add Appointment (Lookup to Appointments, indexed)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "Appointment" -ErrorAction SilentlyContinue)) {
+    $appointmentsList = Get-PnPList -Identity "Appointments"
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "Appointment" -InternalName "Appointment" -Type Lookup
+    Check-LastCommand "Add 'Appointment' lookup field"
+    Set-PnPField -List "PatientJourneyActivities" -Identity "Appointment" -Values @{LookupList=$appointmentsList.Id.ToString(); LookupFieldName="Title"; Indexed=$true}
+    Check-LastCommand "Set 'Appointment' lookup configuration and indexed"
+} else {
+    Write-Host "'Appointment' field already exists" -ForegroundColor Yellow
+}
+
+# Add ActivityDateTime (DateTime, required, indexed)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "ActivityDateTime" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "ActivityDateTime" -InternalName "ActivityDateTime" -Type DateTime -AddToDefaultView -Required
+    Check-LastCommand "Add 'ActivityDateTime' field"
+    Set-PnPField -List "PatientJourneyActivities" -Identity "ActivityDateTime" -Values @{Indexed=$true}
+    Check-LastCommand "Set 'ActivityDateTime' as indexed"
+} else {
+    Write-Host "'ActivityDateTime' field already exists" -ForegroundColor Yellow
+}
+
+# Add ActivityType (Choice, required, indexed)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "ActivityType" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "ActivityType" -InternalName "ActivityType" -Type Choice -Choices @("Admission","Consultation","Lab Test","Imaging","Surgery","Medication","Discharge","Follow-up Call","Treatment","Emergency") -AddToDefaultView -Required
+    Check-LastCommand "Add 'ActivityType' field"
+    Set-PnPField -List "PatientJourneyActivities" -Identity "ActivityType" -Values @{Indexed=$true}
+    Check-LastCommand "Set 'ActivityType' as indexed"
+} else {
+    Write-Host "'ActivityType' field already exists" -ForegroundColor Yellow
+}
+
+# Add Notes (Multiple lines of text)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "Notes" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "Notes" -InternalName "Notes" -Type Note
+    Check-LastCommand "Add 'Notes' field"
+} else {
+    Write-Host "'Notes' field already exists" -ForegroundColor Yellow
+}
+
+# Add Duration (Number, in minutes)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "Duration" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "Duration" -InternalName "Duration" -Type Number
+    Check-LastCommand "Add 'Duration' field"
+} else {
+    Write-Host "'Duration' field already exists" -ForegroundColor Yellow
+}
+
+# Add Priority (Choice, default Normal, indexed)
+if (-not (Get-PnPField -List "PatientJourneyActivities" -Identity "Priority" -ErrorAction SilentlyContinue)) {
+    Add-PnPField -List "PatientJourneyActivities" -DisplayName "Priority" -InternalName "Priority" -Type Choice -Choices @("Low","Normal","High","Critical")
+    Check-LastCommand "Add 'Priority' field"
+    Set-PnPField -List "PatientJourneyActivities" -Identity "Priority" -Values @{DefaultValue="Normal"; Indexed=$true}
+    Check-LastCommand "Set 'Priority' default and indexed"
+} else {
+    Write-Host "'Priority' field already exists" -ForegroundColor Yellow
+}
+
+Write-Host "'PatientJourneyActivities' list setup complete!" -ForegroundColor Cyan
+
+Write-Host ""
+Write-Host "=== MEDICAL SYSTEM SETUP COMPLETE ===" -ForegroundColor Magenta
+Write-Host "All four lists have been created successfully:" -ForegroundColor Green
+Write-Host "1. Patients - Patient records and information" -ForegroundColor Green
+Write-Host "2. Doctors - Doctor profiles and specializations" -ForegroundColor Green
+Write-Host "3. Appointments - Appointment scheduling and management" -ForegroundColor Green
+Write-Host "4. PatientJourneyActivities - Patient care activities and tracking" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "=== GENERATING SAMPLE DATA ===" -ForegroundColor Magenta
+
+# Sample data arrays
+$firstNames = @("John", "Jane", "Michael", "Sarah", "David", "Emily", "Robert", "Jessica", "William", "Ashley", "James", "Amanda", "Christopher", "Stephanie", "Daniel", "Melissa", "Matthew", "Michelle", "Anthony", "Kimberly", "Mark", "Lisa", "Donald", "Angela", "Steven", "Helen", "Paul", "Deborah", "Andrew", "Dorothy", "Kenneth", "Amy", "Joshua", "Elizabeth", "Kevin", "Emma", "Brian", "Olivia", "George", "Sophia")
+$lastNames = @("Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson", "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores")
+$doctorTitles = @("Dr.", "Dr.", "Dr.", "Prof.", "Dr.")
+$specializations = @("Cardiology", "Endocrinology", "Gastroenterology", "Pulmonology", "Pediatrics")
+$departments = @("Cardiology", "Endocrinology", "Gastroenterology", "Pulmonology", "Pediatrics", "General Medicine", "Surgery", "Radiology", "Oncology", "Neurology")
+$genders = @("Male", "Female", "Other")
+$patientStatuses = @("New", "In Treatment", "Completed", "High Priority", "Awaiting Follow-up")
+$serviceTypes = @("General Check-up", "Specialist Consultation", "Follow-up", "Lab Test", "Imaging", "Minor Procedure")
+$appointmentStatuses = @("Scheduled", "Confirmed", "Completed", "Cancelled")
+$activityTypes = @("Admission", "Consultation", "Lab Test", "Imaging", "Surgery", "Medication", "Discharge", "Follow-up Call", "Treatment", "Emergency")
+$priorities = @("Low", "Normal", "High", "Critical")
+
+# Function to generate random email
+function Get-RandomEmail {
+    param([string]$FirstName, [string]$LastName)
+    $domains = @("gmail.com", "yahoo.com", "outlook.com", "hotmail.com")
+    $domain = $domains | Get-Random
+    return "$($FirstName.ToLower()).$($LastName.ToLower())@$domain"
+}
+
+# Function to generate random phone number
+function Get-RandomPhone {
+    $area = Get-Random -Minimum 100 -Maximum 999
+    $exchange = Get-Random -Minimum 100 -Maximum 999
+    $number = Get-Random -Minimum 1000 -Maximum 9999
+    return "($area) $exchange-$number"
+}
+
+# Function to generate random address
+function Get-RandomAddress {
+    $streetNumbers = 1..9999
+    $streetNames = @("Main St", "Oak Ave", "Pine St", "Maple Dr", "Cedar Ln", "First St", "Second Ave", "Park Rd", "Church St", "School Dr")
+    $cities = @("Springfield", "Franklin", "Georgetown", "Madison", "Washington", "Oakland", "Riverside", "Fairview", "Greenwood", "Salem")
+    $states = @("CA", "TX", "FL", "NY", "PA", "IL", "OH", "GA", "NC", "MI")
+    
+    $streetNumber = $streetNumbers | Get-Random
+    $streetName = $streetNames | Get-Random
+    $city = $cities | Get-Random
+    $state = $states | Get-Random
+    $zip = Get-Random -Minimum 10000 -Maximum 99999
+    
+    return "$streetNumber $streetName, $city, $state $zip"
+}
+
+# Generate 30 Doctors first
+Write-Host "Generating 30 doctors..." -ForegroundColor Yellow
+for ($i = 1; $i -le 30; $i++) {
+    $firstName = $firstNames | Get-Random
+    $lastName = $lastNames | Get-Random
+    $title = $doctorTitles | Get-Random
+    $doctorName = "$title $firstName $lastName"
+    $doctorID = "DOC" + $i.ToString("000")
+    $specialization = $specializations | Get-Random
+    $department = $departments | Get-Random
+    $email = Get-RandomEmail -FirstName $firstName -LastName $lastName
+    
+    try {
+        Add-PnPListItem -List "Doctors" -Values @{
+            "Title" = $doctorName
+            "DoctorID" = $doctorID
+            "Specialization" = $specialization
+            "ContactEmail" = $email
+            "Department" = $department
+        } | Out-Null
+        Write-Host "Added doctor: $doctorName" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to add doctor $doctorName : $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Generate 30 Patients
+Write-Host "Generating 30 patients..." -ForegroundColor Yellow
+for ($i = 1; $i -le 30; $i++) {
+    $firstName = $firstNames | Get-Random
+    $lastName = $lastNames | Get-Random
+    $patientName = "$firstName $lastName"
+    $patientID = "PAT" + $i.ToString("000")
+    $dateOfBirth = (Get-Date).AddYears(-1 * (Get-Random -Minimum 18 -Maximum 80)).AddDays(-1 * (Get-Random -Minimum 1 -Maximum 365))
+    $gender = $genders | Get-Random
+    $contactNumber = Get-RandomPhone
+    $email = Get-RandomEmail -FirstName $firstName -LastName $lastName
+    $address = Get-RandomAddress
+    $patientStatus = $patientStatuses | Get-Random
+    
+    $medicalHistory = @(
+        "No known allergies. Regular checkups.",
+        "Allergic to penicillin. History of hypertension.",
+        "Diabetic, on medication. Regular monitoring required.",
+        "Previous surgery in 2020. No complications.",
+        "Family history of heart disease. Preventive care.",
+        "Asthma, uses inhaler. Seasonal allergies.",
+        "No significant medical history.",
+        "Previous fracture, fully healed. No limitations."
+    ) | Get-Random
+    
+    try {
+        # Note: AssignedDoctor is a User field, not a lookup to Doctors list
+        # We'll leave it empty since we don't have actual SharePoint users
+        Add-PnPListItem -List "Patients" -Values @{
+            "Title" = $patientName
+            "PatientID" = $patientID
+            "DateOfBirth" = $dateOfBirth
+            "Gender" = $gender
+            "ContactNumber" = $contactNumber
+            "EmailAddress" = $email
+            "Address" = $address
+            "MedicalHistorySummary" = $medicalHistory
+            "PatientStatus" = $patientStatus
+            # AssignedDoctor field omitted - it's a User field, not Doctor lookup
+        } | Out-Null
+        Write-Host "Added patient: $patientName" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to add patient $patientName : $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Get the created lists for relationship building
+Write-Host "Retrieving created lists for relationship building..." -ForegroundColor Yellow
+$patients = Get-PnPListItem -List "Patients"
+$doctors = Get-PnPListItem -List "Doctors"
+
+# Generate 100 Appointments
+Write-Host "Generating 100 appointments..." -ForegroundColor Yellow
+
+for ($i = 1; $i -le 100; $i++) {
+    $randomPatient = $patients | Get-Random
+    $randomDoctor = $doctors | Get-Random
+    
+    # Generate appointment date/time (past 30 days to future 60 days)
+    $appointmentDate = (Get-Date).AddDays((Get-Random -Minimum -30 -Maximum 60)).AddHours((Get-Random -Minimum 8 -Maximum 17)).AddMinutes((Get-Random -Minimum 0 -Maximum 3) * 15)
+    $appointmentEndTime = $appointmentDate.AddMinutes((Get-Random -Minimum 15 -Maximum 120))
+    
+    $serviceType = $serviceTypes | Get-Random
+    $status = $appointmentStatuses | Get-Random
+    $isUrgent = [bool](Get-Random -Minimum 0 -Maximum 2)
+    
+    $purposes = @(
+        "Annual physical examination",
+        "Follow-up consultation",
+        "Routine check-up",
+        "Lab results review",
+        "Medication adjustment",
+        "Symptom evaluation",
+        "Preventive screening",
+        "Treatment planning"
+    )
+    $purpose = $purposes | Get-Random
+    
+    $notes = @(
+        "Patient reports feeling well overall.",
+        "Routine follow-up, no concerns reported.",
+        "Review of recent test results needed.",
+        "Patient has questions about medication.",
+        "Discuss treatment options and next steps.",
+        "Regular monitoring appointment.",
+        "Patient experiencing mild symptoms.",
+        "Preventive care and health maintenance."
+    ) | Get-Random
+    
+    try {
+        Add-PnPListItem -List "Appointments" -Values @{
+            "Title" = $purpose
+            "Patient" = $randomPatient.Id
+            "Doctor" = $randomDoctor.Id
+            "AppointmentDateTime" = $appointmentDate
+            "AppointmentEndTime" = $appointmentEndTime
+            "ServiceType" = $serviceType
+            "Status" = $status
+            "Notes" = $notes
+            "IsUrgent" = $isUrgent
+        } | Out-Null
+        Write-Host "Added appointment $i for $($randomPatient['Title']) with $($randomDoctor['Title'])" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to add appointment $i : $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Generate 100 Patient Journey Activities
+Write-Host "Generating 100 patient journey activities..." -ForegroundColor Yellow
+$appointments = Get-PnPListItem -List "Appointments"
+
+for ($i = 1; $i -le 100; $i++) {
+    # 70% of activities should be linked to actual appointments for better relationships
+    $useAppointmentLink = (Get-Random -Minimum 1 -Maximum 100) -le 70
+    
+    if ($useAppointmentLink -and $appointments.Count -gt 0) {
+        # Link to an existing appointment and use its patient/doctor
+        $randomAppointment = $appointments | Get-Random
+        
+        # Extract lookup IDs from SharePoint lookup fields
+        $patientLookupId = $randomAppointment["Patient"].LookupId
+        $doctorLookupId = $randomAppointment["Doctor"].LookupId
+        
+        $linkedPatient = $patients | Where-Object { $_.Id -eq $patientLookupId }
+        $linkedDoctor = $doctors | Where-Object { $_.Id -eq $doctorLookupId }
+        
+        # Generate activity date/time around the appointment time
+        $appointmentDateTime = [DateTime]$randomAppointment["AppointmentDateTime"]
+        $activityDate = $appointmentDateTime.AddMinutes((Get-Random -Minimum -60 -Maximum 120))  # Within 1-2 hours of appointment
+        
+        $appointmentId = $randomAppointment.Id
+        $patientId = $linkedPatient.Id
+        $doctorId = $linkedDoctor.Id
+        
+        Write-Host "Linking activity $i to appointment between $($linkedPatient['Title']) and $($linkedDoctor['Title'])" -ForegroundColor Cyan
+    } else {
+        # Independent activity not linked to specific appointment
+        $randomPatient = $patients | Get-Random
+        $randomDoctor = $doctors | Get-Random
+        
+        # Generate activity date/time (past 60 days to future 30 days)
+        $activityDate = (Get-Date).AddDays((Get-Random -Minimum -60 -Maximum 30)).AddHours((Get-Random -Minimum 6 -Maximum 22)).AddMinutes((Get-Random -Minimum 0 -Maximum 11) * 5)
+        
+        $appointmentId = $null
+        $patientId = $randomPatient.Id
+        $doctorId = $randomDoctor.Id
+    }
+    
+    $activityType = $activityTypes | Get-Random
+    $priority = $priorities | Get-Random
+    $duration = Get-Random -Minimum 15 -Maximum 180  # 15 minutes to 3 hours
+    
+    $activityNames = @(
+        "Initial Assessment",
+        "Blood Pressure Check",
+        "Lab Work Review",
+        "Medication Administration",
+        "Physical Therapy Session",
+        "Consultation Notes",
+        "Discharge Planning",
+        "Follow-up Call",
+        "Emergency Response",
+        "Treatment Update"
+    )
+    $activityName = $activityNames | Get-Random
+    
+    $activityNotes = @(
+        "Patient responded well to treatment.",
+        "Vital signs within normal range.",
+        "Patient education provided.",
+        "No adverse reactions noted.",
+        "Follow-up scheduled as planned.",
+        "Patient questions addressed.",
+        "Care plan updated accordingly.",
+        "Good progress observed.",
+        "Patient compliance excellent.",
+        "Next steps discussed with patient."
+    ) | Get-Random
+    
+    $values = @{
+        "Title" = $activityName
+        "Patient" = $patientId
+        "Doctor" = $doctorId
+        "ActivityDateTime" = $activityDate
+        "ActivityType" = $activityType
+        "Notes" = $activityNotes
+        "Duration" = $duration
+        "Priority" = $priority
+    }
+    
+    # Add appointment reference if linked
+    if ($appointmentId) {
+        $values["Appointment"] = $appointmentId
+    }
+    
+    try {
+        Add-PnPListItem -List "PatientJourneyActivities" -Values $values | Out-Null
+        $patientName = ($patients | Where-Object { $_.Id -eq $patientId })['Title']
+        Write-Host "Added activity ${i}: $activityName for $patientName" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to add activity ${i}: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+Write-Host ""
+Write-Host "=== DATA GENERATION COMPLETE ===" -ForegroundColor Magenta
+Write-Host "Sample data generated successfully with proper relationships:" -ForegroundColor Green
+Write-Host "- 30 Doctors with specializations and contact information" -ForegroundColor Green
+Write-Host "- 30 Patients with demographics and medical history" -ForegroundColor Green
+Write-Host "  (Note: AssignedDoctor field left empty - it's a User field, not Doctor lookup)" -ForegroundColor Yellow
+Write-Host "- 100 Appointments with proper Patient and Doctor lookups" -ForegroundColor Green
+Write-Host "- 100 Patient Journey Activities with 70% linked to specific appointments" -ForegroundColor Green
+Write-Host ""
+Write-Host "✅ Relationship Structure:" -ForegroundColor Cyan
+Write-Host "  • Appointments → Patients (Lookup)" -ForegroundColor White
+Write-Host "  • Appointments → Doctors (Lookup)" -ForegroundColor White
+Write-Host "  • PatientJourneyActivities → Patients (Lookup)" -ForegroundColor White
+Write-Host "  • PatientJourneyActivities → Doctors (Lookup)" -ForegroundColor White
+Write-Host "  • PatientJourneyActivities → Appointments (Lookup, 70% linked)" -ForegroundColor White
+Write-Host "  • Patients.AssignedDoctor = User field (requires SharePoint users)" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Your medical system is now ready for testing with realistic relationships!" -ForegroundColor Cyan
